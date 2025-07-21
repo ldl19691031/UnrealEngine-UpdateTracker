@@ -7,8 +7,13 @@ from github.GithubException import UnknownObjectException
 import google.generativeai as genai
 import time
 from datetime import datetime, timedelta
+import subprocess
+from dotenv import load_dotenv
 
-UE_REPO_NAME = "EpicGames/UnrealEngine" # Target repository
+# Load environment variables from .env file
+load_dotenv()
+
+UE_REPO_NAME = "ldl19691031/UnrealEngine5" # Target repository
 raw_limit = os.environ.get("COMMIT_SCAN_LIMIT") # Keep for manual override
 COMMIT_SCAN_LIMIT = int(raw_limit) if raw_limit and raw_limit.isdigit() else None
 
@@ -92,62 +97,38 @@ Files Changed:
     
     aggregated_commits = "\n".join(commits_data)
 
-    prompt = f"""あなたはUnreal Engineの専門家であり、日英バイリンガルのテクニカルライターです。以下に、Unreal EngineのGitHubリポジトリから取得した複数のコミット情報のリストを示します。
+    prompt = f"""你是一位Unreal Engine专家，同时也是一名中文技术写作者。下面是从Unreal Engine的GitHub仓库获取的多个提交信息列表。
 
-あなたのタスクは、これらのコミット全体を分析し、開発者にとって特に重要だと思われる変更点を抽出し、**日本語のサマリーレポートを作成し、その直後に同じ内容の英語のレポートを併記する**ことです。
+你的任务是分析这些提交，**提取对开发者来说特别重要的变更，用中文撰写摘要报告**。
 
-レポートはMarkdown形式で、以下のガイドラインに従ってください。
+报告需采用Markdown格式，并遵循以下指南：
 
-### 日本語レポートのガイドライン
-1.  **最重要項目の抽出:** 全てのコミットをリストアップするのではなく、新機能の追加、大規模なリファクタリング、APIの重大な変更、パフォーマンスに大きな影響を与える修正など、特に注目すべき変更だけを厳選してください。**あなたの判断で重要でないと見なしたコミットは、レポートから完全に省略（割愛）してください。**
-2.  **カテゴリ分類:** 抽出した項目を、以下のカテゴリに分類して見出しを作成してください。
-    - `## 🚀 新機能 (New Features)`
-    - `## 💥 重大な変更 (Breaking Changes)`
-    - `## ✨ パフォーマンス改善 (Performance Improvements)`
-    - `## 🛠️ リファクタリングと改善 (Refactoring & Improvements)`
-    - `## 🐛 バグ修正 (Bug Fixes)`
-    - `## 📚 その他 (Miscellaneous)`
-3.  **要約とグルーピング:**
-    *   類似した内容の更新は一つにまとめてください。
-    *   各項目について、変更内容が簡潔に理解できる要約を記述してください。
-    *   特に重要な変更点については、その背景や開発者への影響がわかるように、複数行で詳細な説明を加えてください。
-4.  **リンクの列挙:**
-    *   グルーピングした項目の下に、関連する全てのコミットへのリンクを `* ([コミットSHAの先頭7文字](完全なコミットURL))` の形式でリストアップしてください。
-
-### 英語レポートのガイドライン
-*   日本語レポートの内容を、専門用語を正しく使用して、自然な英語に翻訳してください。
-*   カテゴリの見出しも英語にしてください (e.g., `## 🚀 New Features`)。
-*   フォーマットは日本語レポートと完全に同一にしてください。
-
-### 全体の出力形式
-もし注目すべき変更が一つもなかった場合は、「今週、注目すべき大きな更新はありませんでした。 / There were no notable updates this week.」とだけ出力してください。
-それ以外の場合は、以下の形式で出力してください。余計な前置きや結びの言葉は不要です。
-
+### 中文报告指南
+1.  **只提取最重要内容：** 不要罗列所有提交，只需筛选出新功能添加、大规模重构、API重大变更、对性能有显著影响的修复等特别值得关注的变更。**你认为不重要的提交请完全省略，不要在报告中出现。**
+2.  **分类整理：** 将提取的内容按以下类别分组并添加标题：
+    - `## 🚀 新功能 (New Features)`
+    - `## 💥 重大变更 (Breaking Changes)`
+    - `## ✨ 性能优化 (Performance Improvements)`
+    - `## 🛠️ 重构与改进 (Refactoring & Improvements)`
+    - `## 🐛 Bug修复 (Bug Fixes)`
+    - `## 📚 其他 (Miscellaneous)`
+3.  **摘要与归纳：**
+    *   相似内容的更新请合并归纳。
+    *   每项内容请简明扼要地描述变更。
+    *   对特别重要的变更，请补充多行详细说明，包括背景和对开发者的影响。
+4.  **链接列举：**
+    *   在每个分组下，列出所有相关提交的链接，格式为 `* ([提交SHA前7位](完整提交URL))`。
+5.  **Markdown格式：** 使用Markdown语法，确保报告易读。
+6.  **语言要求：** 报告必须使用中文撰写，确保技术术语准确。
+7.  **避免冗余：** 不要重复提交信息，确保每个变更只出现一次。
+8.  **直接给出报告：** 不要添加任何额外的解释或说明，直接输出报告内容。比如，不要说“以下是报告”或者“好的...”，直接开始报告内容。
 ```markdown
-{{ここに日本語のレポート}}
+{{这里是中文报告}}
 
 ---
-<br>
-
-{{ここに英語のレポート}}
-```
-
-**出力例:**
-```markdown
-## 🚀 新機能 (New Features)
-- 外部ビデオアセットでProtron Playerを選択するための設定が追加されました。
-  * ([14513a4](https://github.com/EpicGames/UnrealEngine/commit/14513a4b2d5818265715f788b8e9d4a5c6a7b8c9))
 
 ---
-<br>
-
-## 🚀 New Features
-- Added a setting to select the Protron Player for external video assets.
-  * ([14513a4](https://github.com/EpicGames/UnrealEngine/commit/14513a4b2d5818265715f788b8e9d4a5c6a7b8c9))
-```
-
----
-以下が分析対象のコミット情報です：
+以下是分析对象的提交信息：
 ---
 
 {aggregated_commits}
@@ -270,6 +251,7 @@ def create_discussion(repo_name, title, body, pat, category_name="Daily Reports"
 
 
 def main():
+    print("---")
     """
     Main function to execute the update check.
     """
